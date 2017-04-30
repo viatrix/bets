@@ -1,7 +1,7 @@
 {
-  "name": "ethse",
+  "name": "bets",
   "version": "0.0.1",
-  "description": "Truffle project for Ethereum Course",
+  "description": "Bets contract",
   "scripts": {
     "test": "truffle test",
     "compile": "truffle compile",
@@ -10,19 +10,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lastperson/ethse.git"
+    "url": "git+https://github.com/viatrix/bets.git"
   },
   "keywords": [
     "ethereum",
     "solidity",
     "truffle"
   ],
-  "author": "Oleksii Matiiasevych <oleksii@ambisafe.co>",
+  "author": "Viatrix",
   "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://github.com/lastperson/ethse/issues"
+    "url": "https://github.com/viatrix/bets/issues"
   },
-  "homepage": "https://github.com/lastperson/ethse#readme",
+  "homepage": "https://github.com/viatrix/bets#readme",
   "dependencies": {
     "bluebird": "^3.5.0",
     "ethereumjs-testrpc": "^3.0.3",

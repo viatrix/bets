@@ -48,14 +48,40 @@ contract('Bets', function(accounts) {
   });
 
   it('should allow to place a bet on case A', () => {
-      const bettorA1 = accounts[1];
-      const bettorA2 = accounts[2];
+      const bettor = accounts[1];
       const amount = 20;
       return Promise.resolve()
-      then(() => bets.createGame("New bet 1", "case A1", "case B1", {from: OWNER}))
-      .then(() => bets.placeBetA(0,  {from: bettorA1, value:20}))
-      .then(() => bets.placeBetA(0, {from: bettorA2, value:40}))
-      .then(asserts.equal(1000));
+      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
+      .then(() => bets.placeBetA(0,  {from: bettor, value:amount}))
+      .then(() => bets.checkBalance({from: OWNER}))
+      .then(asserts.equal(amount));
+  });
+
+  it('should allow to place a bet on case B', () => {
+      const bettor = accounts[1];
+      const amount = 20;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
+      .then(() => bets.placeBetB(0,  {from: bettor, value:amount}))
+      .then(() => bets.checkBalance({from: OWNER}))
+      .then(asserts.equal(amount));
+  });
+
+  it('should allow to resolve the game (case A wins)', () => {
+      const bettorA = accounts[1];
+      const bettorB = accounts[2];
+      const amount = 2000;
+      const adminBefore = web3.toBigNumber(web3.eth.getBalance(OWNER));
+      var bettorA_before;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
+      .then(() => bets.placeBetA(0,  {from: bettorA, value:amount}))
+      .then(() => bets.placeBetB(0,  {from: bettorB, value:amount}))
+      .then(() => {bettorA_before = web3.toBigNumber(web3.eth.getBalance(bettorA));})
+      .then(() => bets.resolveGameA(0, {from: OWNER}))
+      .then(() => asserts.throws(bets.placeBetA(0,  {from: bettorA, value:amount})))
+      .then(() => assert.isTrue(web3.toBigNumber(web3.eth.getBalance(OWNER)).lte(adminBefore)))
+      .then(() => assert.isTrue(web3.toBigNumber(web3.eth.getBalance(bettorA)).lte(bettorA_before)));
   });
 
 });

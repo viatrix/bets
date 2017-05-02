@@ -82,8 +82,47 @@ contract Bets {
         return games[GameID].numBetsA - 1;
     }
 
+    function placeBetB(uint GameID) onlyNotAdmin() payable returns (uint betID){
+        if (! games[GameID].isActive) throw;
+        games[GameID].betsB[games[GameID].numBetsB].bettor = msg.sender;
+        games[GameID].betsB[games[GameID].numBetsB].amount = msg.value;
+        games[GameID].numBetsB++;
+        return games[GameID].numBetsB - 1;
+    }
+
     function checkBalance() constant returns (uint balance){
         return this.balance;
+    }
+
+    function resolveGameA(uint GameID) onlyAdmin() returns (bool result) {
+        games[GameID].isActive = false;
+        games[GameID].winner = games[GameID].descrA;
+        uint sumLosers = 0;
+        uint sumWinners = 0;
+        uint countWinners = 0;
+        uint adminFee = 0;
+        uint prize = 0;
+        for (uint i=0; i<games[GameID].numBetsB; i++){
+            sumLosers += games[GameID].betsB[i].amount;
+        }
+        for (i=0; i<games[GameID].numBetsA; i++){
+            countWinners++;
+            sumWinners += games[GameID].betsA[i].amount;
+        }
+        if (sumLosers == 0) return;
+        if (sumWinners==0) {
+            if(!admin.send(sumLosers)){  return false;    }
+        }
+        else {
+            adminFee = sumLosers/10;
+            prize = (sumLosers-adminFee)/sumWinners;
+            if(!admin.send(adminFee)){  return false;    }
+            for (i=0; i<games[GameID].numBetsA; i++){
+                if(!games[GameID].betsA[i].bettor.send(
+                    prize*(games[GameID].betsA[i].amount))) {return false;}
+            }
+        }
+        return true;
     }
 
     function _assert(bool _assertion) internal {

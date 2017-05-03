@@ -71,17 +71,24 @@ contract('Bets', function(accounts) {
       const bettorA = accounts[1];
       const bettorB = accounts[2];
       const amount = 2000;
-      const adminBefore = web3.toBigNumber(web3.eth.getBalance(OWNER));
-      var bettorA_before;
+      var adminBefore = web3.eth.getBalance(OWNER).valueOf();
+      const gasPrice = web3.eth.gasPrice;
+      var bettorA_before, adminAfter, bettorA_after;
       return Promise.resolve()
       .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBetA(0,  {from: bettorA, value:amount}))
-      .then(() => bets.placeBetB(0,  {from: bettorB, value:amount}))
-      .then(() => {bettorA_before = web3.toBigNumber(web3.eth.getBalance(bettorA));})
-      .then(() => bets.resolveGameA(0, {from: OWNER}))
-      .then(() => asserts.throws(bets.placeBetA(0,  {from: bettorA, value:amount})))
-      .then(() => assert.isTrue(web3.toBigNumber(web3.eth.getBalance(OWNER)).lte(adminBefore)))
-      .then(() => assert.isTrue(web3.toBigNumber(web3.eth.getBalance(bettorA)).lte(bettorA_before)));
+      .then(() => bettorA_before = web3.eth.getBalance(bettorA))
+      .then(() => bets.placeBetA(0,  {from: bettorA, value:amount, gasPrice: gasPrice}))
+      .then((result) => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
+      bettorA_before.sub(gasPrice.mul(result.receipt.gasUsed)).sub(amount).valueOf()));
+//      .then(() => bets.placeBetB(0,  {from: bettorB, value:amount}))
+//      .then(() => {bettorA_before = web3.eth.getBalance(bettorA).valueOf();
+//                    adminBefore = web3.eth.getBalance(OWNER).valueOf();})
+//      .then(() => bets.resolveGameA(0, {from: OWNER}))
+//      .then((result) => {adminAfter = adminBefore-(result.receipt.gasUsed*gasPrice)+600;
+//          assert.equal(web3.eth.getBalance(OWNER).valueOf(), adminAfter)})
+    //  .then(() => asserts.throws(bets.placeBetA(0,  {from: bettorA, value:amount})))
+    //  .then(() => asserts.equal(web3.toBigNumber(web3.eth.getBalance(OWNER)).lte(adminBefore)))
+    //  .then(() => assert.isTrue(web3.toBigNumber(web3.eth.getBalance(bettorA)).lte(bettorA_before)));
   });
 
 });

@@ -97,7 +97,7 @@ contract('Bets', function(accounts) {
       .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
             adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(200).valueOf()))
       .then(() => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
-            bettorA_before.add(1800).valueOf()));
+            bettorA_before.add(3800).valueOf()));
 
   });
 

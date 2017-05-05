@@ -65,6 +65,7 @@ contract Bets {
     }
 
     function searchGame(string descr) constant returns (uint index) {
+        // What if there is millions of games? Maybe searches should take constant time whenever possible.
         for (var i=0; i<numGames; i++){
             if (sha3(games[i].description) == sha3(descr)) {
                 return i;
@@ -73,6 +74,7 @@ contract Bets {
     }
 
     function placeBet(uint GameID, string Case) onlyNotAdmin() payable returns (bool result){
+        // What if user sent ETH to inactive game? It will just sit here unnoticed.
         if (! games[GameID].isActive) return false;
         if ((sha3(Case) == sha3("A")) || (sha3(Case) == sha3("a")))
             games[GameID].bets[games[GameID].numBets].betCase = "A";
@@ -103,19 +105,24 @@ contract Bets {
             }
         else return false;
         games[GameID].isActive = false;
+        // What if there is a million of bets? This loop will never have enough gas.
         for (i=0; i<games[GameID].numBets; i++)
             if (sha3(games[GameID].bets[i].betCase) == sha3(games[GameID].winner))
                 sumWinners += games[GameID].bets[i].amount;
             else sumLosers += games[GameID].bets[i].amount;
         if (sumWinners == 0) {
+            // If send to admin failed, then this game's ETH will be locked forever, cause game inactive now.
             if(!admin.send(sumLosers)){  return false;    }
         }
         else {
             adminFee = sumLosers/10;
             rate = (sumLosers-adminFee)*1000/sumWinners;
+            // If send to admin failed, then this game's ETH will be locked forever, cause game inactive now.
             if(!admin.send(adminFee)){  return false;    }
+            // What if there is a million of bets? This loop will never have enough gas.
             for (i=0; i<games[GameID].numBets; i++){
                 if (sha3(games[GameID].bets[i].betCase) == sha3(games[GameID].winner))
+                    // If send to bettor failed, then this game's ETH will be locked forever, cause game inactive now.
                     if(!games[GameID].bets[i].bettor.send(
                         rate*(games[GameID].bets[i].amount)/1000+games[GameID].bets[i].amount))
                             {return false;}

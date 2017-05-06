@@ -92,6 +92,8 @@ contract Bets {
         uint adminFee = 0;
         uint rate = 0;
         uint i;
+        uint gameBalance = 0;
+        uint prize = 0;
         if ((winnerCase != 1) && (winnerCase != 2)) throw;
         games[GameID].winner = winnerCase;
         games[GameID].isActive = false;
@@ -99,6 +101,7 @@ contract Bets {
             if (games[GameID].bets[i].betCase == winnerCase)
                 sumWinners += games[GameID].bets[i].amount;
             else sumLosers += games[GameID].bets[i].amount;
+        gameBalance = sumLosers+sumWinners;
         if (sumWinners == 0) {
             if(!admin.send(sumLosers)){  throw;    }
         }
@@ -106,13 +109,18 @@ contract Bets {
             adminFee = sumLosers/10;
             rate = (sumLosers-adminFee)*1000/sumWinners;
             if(!admin.send(adminFee)){  throw;    }
+            gameBalance = _safeSub(gameBalance, adminFee);
             for (i=0; i<games[GameID].numBets; i++){
-                if (games[GameID].bets[i].betCase == winnerCase)
-                    if(!games[GameID].bets[i].bettor.send(
-                        rate*(games[GameID].bets[i].amount)/1000+games[GameID].bets[i].amount))
+                if (games[GameID].bets[i].betCase == winnerCase) {
+                    prize = rate*(games[GameID].bets[i].amount)/1000+games[GameID].bets[i].amount;
+                    if(!games[GameID].bets[i].bettor.send(prize))
                             {throw;}
+                        gameBalance = _safeSub(gameBalance, prize);
                     }
+                }
             }
+            if (gameBalance > 0)
+                if(!admin.send(gameBalance)){  throw;    }
             return true;
         }
 

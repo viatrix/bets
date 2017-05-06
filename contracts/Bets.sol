@@ -5,18 +5,18 @@ contract Bets {
 
     struct Bet {
         address bettor;
-        string betCase;
+        uint betCase;
         uint amount;
     }
 
     struct Game {
         string description;
-        string descrA;
-        string descrB;
+        string descr1;
+        string descr2;
         bool isActive;
         uint numBets;
         mapping (uint => Bet) bets;
-        string winner;
+        uint winner;
     }
 
     uint public numGames;
@@ -40,14 +40,14 @@ contract Bets {
         admin = msg.sender;
         }
 
-    function createGame(string description, string descrA, string descrB)
+    function createGame(string description, string descr1, string descr2)
             onlyAdmin() returns (string descr) {
         games[numGames] = Game({description: description,
-            descrA: descrA,
-            descrB: descrB,
+            descr1: descr1,
+            descr2: descr2,
             isActive: true,
             numBets: 0,
-            winner: ""});
+            winner: 0});
         numGames++;
         return games[numGames-1].description;
     }
@@ -56,12 +56,12 @@ contract Bets {
         return games[num].description;
     }
 
-    function getDescrA(uint num) constant returns (string descrA) {
-        return games[num].descrA;
+    function getDescr1(uint num) constant returns (string descr1) {
+        return games[num].descr1;
     }
 
-    function getDescrB(uint num) constant returns (string descrB) {
-        return games[num].descrB;
+    function getDescr2(uint num) constant returns (string descr2) {
+        return games[num].descr2;
     }
 
     function searchGame(string descr) constant returns (uint index) {
@@ -72,13 +72,10 @@ contract Bets {
         }
     }
 
-    function placeBet(uint GameID, string Case) onlyNotAdmin() payable returns (bool result){
+    function placeBet(uint GameID, uint Case) onlyNotAdmin() payable returns (bool result){
         if (! games[GameID].isActive) throw;
-        if ((sha3(Case) == sha3("A")) || (sha3(Case) == sha3("a")))
-            games[GameID].bets[games[GameID].numBets].betCase = "A";
-        else if ((sha3(Case) == sha3("B")) || (sha3(Case) == sha3("b")))
-            games[GameID].bets[games[GameID].numBets].betCase = "B";
-        else throw;
+        if ((Case != 1) && (Case != 2)) throw;
+        games[GameID].bets[games[GameID].numBets].betCase = Case;
         games[GameID].bets[games[GameID].numBets].bettor = msg.sender;
         games[GameID].bets[games[GameID].numBets].amount = msg.value;
         games[GameID].numBets++;
@@ -89,22 +86,17 @@ contract Bets {
         return this.balance;
     }
 
-    function resolveGame(uint GameID, string winnerCase) onlyAdmin() returns (bool result) {
+    function resolveGame(uint GameID, uint winnerCase) onlyAdmin() returns (bool result) {
         uint sumLosers = 0;
         uint sumWinners = 0;
         uint adminFee = 0;
         uint rate = 0;
         uint i;
-        if ((sha3(winnerCase) == sha3("A")) || (sha3(winnerCase) == sha3("a"))) {
-            games[GameID].winner = "A";
-            }
-        else if ((sha3(winnerCase) == sha3("B")) || (sha3(winnerCase) == sha3("b"))) {
-            games[GameID].winner = "B";
-            }
-        else return false;
+        if ((winnerCase != 1) && (winnerCase != 2)) throw;
+        games[GameID].winner = winnerCase;
         games[GameID].isActive = false;
         for (i=0; i<games[GameID].numBets; i++)
-            if (sha3(games[GameID].bets[i].betCase) == sha3(games[GameID].winner))
+            if (games[GameID].bets[i].betCase == winnerCase)
                 sumWinners += games[GameID].bets[i].amount;
             else sumLosers += games[GameID].bets[i].amount;
         if (sumWinners == 0) {
@@ -115,7 +107,7 @@ contract Bets {
             rate = (sumLosers-adminFee)*1000/sumWinners;
             if(!admin.send(adminFee)){  throw;    }
             for (i=0; i<games[GameID].numBets; i++){
-                if (sha3(games[GameID].bets[i].betCase) == sha3(games[GameID].winner))
+                if (games[GameID].bets[i].betCase == winnerCase)
                     if(!games[GameID].bets[i].bettor.send(
                         rate*(games[GameID].bets[i].amount)/1000+games[GameID].bets[i].amount))
                             {throw;}

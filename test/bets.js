@@ -31,9 +31,9 @@ contract('Bets', function(accounts) {
       .then(() => bets.createGame(descr, caseA, caseB, {from: OWNER}))
       .then(() => bets.getDescription(0))
       .then(asserts.equal(descr))
-      .then(() => bets.getDescrA(0))
+      .then(() => bets.getDescr1(0))
       .then(asserts.equal(caseA))
-      .then(() => bets.getDescrB(0))
+      .then(() => bets.getDescr2(0))
       .then(asserts.equal(caseB));
   });
 
@@ -52,7 +52,7 @@ contract('Bets', function(accounts) {
       const amount = 20;
       return Promise.resolve()
       .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "A",  {from: bettor, value:amount}))
+      .then(() => bets.placeBet(0, 1,  {from: bettor, value:amount}))
       .then(() => bets.checkBalance({from: OWNER}))
       .then(asserts.equal(amount));
   });
@@ -62,7 +62,7 @@ contract('Bets', function(accounts) {
       const amount = 20;
       return Promise.resolve()
       .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "B",  {from: bettor, value:amount}))
+      .then(() => bets.placeBet(0, 2,  {from: bettor, value:amount}))
       .then(() => bets.checkBalance({from: OWNER}))
       .then(asserts.equal(amount));
   });
@@ -76,7 +76,7 @@ contract('Bets', function(accounts) {
       return Promise.resolve()
       .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
       .then(() => bettorA_before = web3.eth.getBalance(bettorA))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA, value:amount, gasPrice: gasPrice}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorA, value:amount, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
       bettorA_before.sub(gasPrice.mul(result.receipt.gasUsed)).sub(amount).valueOf()));
   });
@@ -89,11 +89,11 @@ contract('Bets', function(accounts) {
       const gasPrice = web3.eth.gasPrice;
       return Promise.resolve()
       .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA, value:amount}))
-      .then(() => bets.placeBet(0, "B",  {from: bettorB, value:amount}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorA, value:amount}))
+      .then(() => bets.placeBet(0, 2,  {from: bettorB, value:amount}))
       .then(() =>  adminBefore = web3.eth.getBalance(OWNER))
       .then(() =>  bettorA_before = web3.eth.getBalance(bettorA))
-      .then(() => bets.resolveGame(0, "A", {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
             adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(200).valueOf()))
       .then(() => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
@@ -111,14 +111,14 @@ contract('Bets', function(accounts) {
       const gasPrice = web3.eth.gasPrice;
       return Promise.resolve()
       .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA1, value:amount1}))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA2, value:amount2}))
-      .then(() => bets.placeBet(0, "B",  {from: bettorB1, value:amount1*2}))
-      .then(() => bets.placeBet(0, "B",  {from: bettorB2, value:amount2*2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 2,  {from: bettorB1, value:amount1*2}))
+      .then(() => bets.placeBet(0, 2,  {from: bettorB2, value:amount2*2}))
       .then(() =>  adminBefore = web3.eth.getBalance(OWNER))
       .then(() =>  bettorB1_before = web3.eth.getBalance(bettorB1))
       .then(() =>  bettorB2_before = web3.eth.getBalance(bettorB2))
-      .then(() => bets.resolveGame(0, "B", {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.resolveGame(0, 2, {from: OWNER, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
             adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(200).valueOf()))
       .then(() => assert.equal(web3.eth.getBalance(bettorB1).valueOf(),

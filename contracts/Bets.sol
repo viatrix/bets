@@ -7,6 +7,7 @@ contract Bets {
         address bettor;
         string betCase;
         uint amount;
+        bool isActive;
     }
 
     struct Game {
@@ -14,8 +15,12 @@ contract Bets {
         string descrA;
         string descrB;
         bool isActive;
-        uint numBets;
+        uint numBetsA;
+        uint numBetsB;
+        uint numActiveWinnerBets;
         mapping (uint => Bet) bets;
+        uint sumBetsA;
+        uint sumBetsB;
         string winner;
     }
 
@@ -46,7 +51,11 @@ contract Bets {
             descrA: descrA,
             descrB: descrB,
             isActive: true,
-            numBets: 0,
+            numBetsA: 0,
+            numBetsB: 0,
+            numActiveWinnerBets: 0,
+            sumBetsA: 0,
+            sumBetsB: 0,
             winner: ""});
         numGames++;
         return games[numGames-1].description;
@@ -64,24 +73,24 @@ contract Bets {
         return games[num].descrB;
     }
 
-    function searchGame(string descr) constant returns (uint index) {
-        for (var i=0; i<numGames; i++){
-            if (sha3(games[i].description) == sha3(descr)) {
-                return i;
-            }
-        }
-    }
-
     function placeBet(uint GameID, string Case) onlyNotAdmin() payable returns (bool result){
-        if (! games[GameID].isActive) throw;
-        if ((sha3(Case) == sha3("A")) || (sha3(Case) == sha3("a")))
-            games[GameID].bets[games[GameID].numBets].betCase = "A";
-        else if ((sha3(Case) == sha3("B")) || (sha3(Case) == sha3("b")))
-            games[GameID].bets[games[GameID].numBets].betCase = "B";
+        uint numBets;
+        if ((! games[GameID].isActive) || (msg.value == 0)) throw;
+        numBets = games[GameID].numBetsA+games[GameID].numBetsB;
+        if ((sha3(Case) == sha3("A")) || (sha3(Case) == sha3("a"))) {
+            games[GameID].bets[numBets].betCase = "A";
+            games[GameID].sumBetsA += msg.value;
+            games[GameID].numBetsA++;
+        }
+        else if ((sha3(Case) == sha3("B")) || (sha3(Case) == sha3("b"))) {
+            games[GameID].bets[numBets].betCase = "B";
+            games[GameID].sumBetsB += msg.value;
+            games[GameID].numBetsB++;
+        }
         else throw;
-        games[GameID].bets[games[GameID].numBets].bettor = msg.sender;
-        games[GameID].bets[games[GameID].numBets].amount = msg.value;
-        games[GameID].numBets++;
+        games[GameID].bets[numBets].bettor = msg.sender;
+        games[GameID].bets[numBets].amount = msg.value;
+        games[GameID].bets[numBets].isActive = true;
         return true;
     }
 
@@ -89,48 +98,89 @@ contract Bets {
         return this.balance;
     }
 
+    function claimPrize(uint GameID, uint BetID) returns (uint prize) {
+        uint sumLosers = 0;
+        uint sumWinners = 0;
+        prize = 0;
+        if ((games[GameID].isActive == true) ||
+            (sha3(games[GameID].winner) != sha3(games[GameID].bets[BetID].betCase)) ||
+            (games[GameID].bets[BetID].isActive == false))
+            {throw;}
+        if (sha3(games[GameID].winner) == sha3("A")) {
+            sumLosers = games[GameID].sumBetsB;
+            sumWinners = games[GameID].sumBetsA;
+        }
+        else {
+            sumLosers = games[GameID].sumBetsA;
+            sumWinners = games[GameID].sumBetsB;
+        }
+        if (sumLosers == 0) {return 0;}
+        prize =  (sumLosers*1000/sumWinners)*(games[GameID].bets[BetID].amount)/1000;
+        if(!games[GameID].bets[BetID].bettor.send(prize+games[GameID].bets[BetID].amount))
+                {throw;}
+        sumLosers = _safeSub(sumLosers, prize);
+        sumWinners = _safeSub(sumWinners, games[GameID].bets[BetID].amount);
+        if (sha3(games[GameID].winner) == sha3("A")) {
+            games[GameID].sumBetsB = sumLosers;
+            games[GameID].sumBetsA = sumWinners;
+        }
+        else {
+            games[GameID].sumBetsA = sumLosers;
+            games[GameID].sumBetsB = sumWinners;
+        }
+        games[GameID].numActiveWinnerBets = games[GameID].numActiveWinnerBets-1;
+        return prize;
+    }
+
+    function claimRemainings(uint GameID) onlyAdmin() returns (uint remainings) {
+        uint sumLosers;
+        if ((games[GameID].isActive == true) ||
+            (games[GameID].numActiveWinnerBets != 0))
+            {throw;}
+        if (sha3(games[GameID].winner) == sha3("A"))
+            sumLosers = games[GameID].sumBetsB;
+        else
+            sumLosers = games[GameID].sumBetsA;
+        if (sumLosers > 0)
+            if(!admin.send(sumLosers)){  throw;    }
+        if (sha3(games[GameID].winner) == sha3("A"))
+            games[GameID].sumBetsB = 0;
+        else
+            games[GameID].sumBetsA = 0;
+        return sumLosers;
+    }
+
     function resolveGame(uint GameID, string winnerCase) onlyAdmin() returns (bool result) {
         uint sumLosers = 0;
         uint sumWinners = 0;
         uint adminFee = 0;
-        uint rate = 0;
-        uint i;
-        uint gameBalance = 0;
-        uint prize = 0;
         if ((sha3(winnerCase) == sha3("A")) || (sha3(winnerCase) == sha3("a"))) {
             games[GameID].winner = "A";
+            sumLosers = games[GameID].sumBetsB;
+            sumWinners = games[GameID].sumBetsA;
+            games[GameID].numActiveWinnerBets = games[GameID].numBetsA;
             }
         else if ((sha3(winnerCase) == sha3("B")) || (sha3(winnerCase) == sha3("b"))) {
             games[GameID].winner = "B";
+            sumLosers = games[GameID].sumBetsA;
+            sumWinners = games[GameID].sumBetsB;
+            games[GameID].numActiveWinnerBets = games[GameID].numBetsB;
             }
         else return false;
         games[GameID].isActive = false;
-        for (i=0; i<games[GameID].numBets; i++)
-            if (sha3(games[GameID].bets[i].betCase) == sha3(games[GameID].winner))
-                sumWinners += games[GameID].bets[i].amount;
-            else sumLosers += games[GameID].bets[i].amount;
-        gameBalance = sumLosers+sumWinners;
         if (sumWinners == 0) {
             if(!admin.send(sumLosers)){  throw;    }
         }
         else {
             adminFee = sumLosers/10;
-            rate = (sumLosers-adminFee)*1000/sumWinners;
             if(!admin.send(adminFee)){  throw;    }
-            gameBalance = _safeSub(gameBalance, adminFee);
-            for (i=0; i<games[GameID].numBets; i++){
-                if (sha3(games[GameID].bets[i].betCase) == sha3(games[GameID].winner)) {
-                    prize = rate*(games[GameID].bets[i].amount)/1000+games[GameID].bets[i].amount;
-                    if(!games[GameID].bets[i].bettor.send(prize))
-                            {throw;}
-                        gameBalance = _safeSub(gameBalance, prize);
-                    }
-                }
-            }
-            if (gameBalance > 0)
-                if(!admin.send(gameBalance)){  throw;    }
+            if (sha3(winnerCase) == sha3("A"))
+                games[GameID].sumBetsB = _safeSub(sumLosers, adminFee);
+            else
+                games[GameID].sumBetsA = _safeSub(sumLosers, adminFee);
             return true;
         }
+    }
 
     function getUserBalance(address user) constant returns (uint balance) {
         return user.balance;

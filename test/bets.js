@@ -37,16 +37,6 @@ contract('Bets', function(accounts) {
       .then(asserts.equal(caseB));
   });
 
-  it('should allow to search for the betting by description', () => {
-      return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A1", "case B1", {from: OWNER}))
-      .then(() => bets.createGame("New bet 2", "case A2", "case B2", {from: OWNER}))
-      .then(() => bets.searchGame("New bet 1"))
-      .then(asserts.equal(0))
-      .then(() => bets.searchGame("New bet 2"))
-      .then(asserts.equal(1));
-  });
-
   it('should allow to place a bet on case A', () => {
       const bettor = accounts[1];
       const amount = 20;
@@ -96,6 +86,7 @@ contract('Bets', function(accounts) {
       .then(() => bets.resolveGame(0, "A", {from: OWNER, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
             adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(200).valueOf()))
+      .then(() => bets.claimPrize(0,0, {gasPrice: gasPrice}))
       .then(() => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
             bettorA_before.add(3800).valueOf()));
   });
@@ -121,10 +112,12 @@ contract('Bets', function(accounts) {
       .then(() => bets.resolveGame(0, "B", {from: OWNER, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
             adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(200).valueOf()))
+      .then(() => bets.claimPrize(0,2, {from: OWNER, gasPrice: gasPrice}))
       .then(() => assert.equal(web3.eth.getBalance(bettorB1).valueOf(),
-            bettorB1_before.add(4350).valueOf()))
+                    bettorB1_before.add(4350).valueOf()))
+      .then(() => bets.claimPrize(0,3, {from: OWNER, gasPrice: gasPrice}))
       .then(() => assert.equal(web3.eth.getBalance(bettorB2).valueOf(),
-            bettorB2_before.add(1450).valueOf()));
+                  bettorB2_before.add(1450).valueOf()));
   });
 
 });

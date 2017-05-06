@@ -73,7 +73,7 @@ contract Bets {
     }
 
     function placeBet(uint GameID, string Case) onlyNotAdmin() payable returns (bool result){
-        if (! games[GameID].isActive) return false;
+        if (! games[GameID].isActive) throw;
         if ((sha3(Case) == sha3("A")) || (sha3(Case) == sha3("a")))
             games[GameID].bets[games[GameID].numBets].betCase = "A";
         else if ((sha3(Case) == sha3("B")) || (sha3(Case) == sha3("b")))
@@ -108,17 +108,17 @@ contract Bets {
                 sumWinners += games[GameID].bets[i].amount;
             else sumLosers += games[GameID].bets[i].amount;
         if (sumWinners == 0) {
-            if(!admin.send(sumLosers)){  return false;    }
+            if(!admin.send(sumLosers)){  throw;    }
         }
         else {
             adminFee = sumLosers/10;
             rate = (sumLosers-adminFee)*1000/sumWinners;
-            if(!admin.send(adminFee)){  return false;    }
+            if(!admin.send(adminFee)){  throw;    }
             for (i=0; i<games[GameID].numBets; i++){
                 if (sha3(games[GameID].bets[i].betCase) == sha3(games[GameID].winner))
                     if(!games[GameID].bets[i].bettor.send(
                         rate*(games[GameID].bets[i].amount)/1000+games[GameID].bets[i].amount))
-                            {return false;}
+                            {throw;}
                     }
             }
             return true;

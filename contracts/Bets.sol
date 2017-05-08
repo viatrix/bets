@@ -5,23 +5,21 @@ contract Bets {
 
     struct Bet {
         address bettor;
-        string betCase;
+        uint betCase;
         uint amount;
         bool isActive;
     }
 
     struct Game {
         string description;
-        string descrA;
-        string descrB;
+        string[2] descr;
         bool isActive;
-        uint numBetsA;
-        uint numBetsB;
+        uint[2] numBets;
         uint numActiveWinnerBets;
         mapping (uint => Bet) bets;
-        uint sumBetsA;
-        uint sumBetsB;
-        string winner;
+        uint[2] sumBets;
+        uint winner;
+        uint deadline;
     }
 
     uint public numGames;
@@ -45,18 +43,17 @@ contract Bets {
         admin = msg.sender;
         }
 
-    function createGame(string description, string descrA, string descrB)
+    function createGame(string description, string descr0, string descr1, uint duration)
             onlyAdmin() returns (string descr) {
         games[numGames] = Game({description: description,
-            descrA: descrA,
-            descrB: descrB,
+            descr: [descr0, descr1],
             isActive: true,
-            numBetsA: 0,
-            numBetsB: 0,
+            numBets: [uint256(0), uint256(0)],
             numActiveWinnerBets: 0,
-            sumBetsA: 0,
-            sumBetsB: 0,
-            winner: ""});
+            sumBets: [uint256(0), uint256(0)],
+            winner: 0,
+            deadline: now + duration * 1 seconds
+        });
         numGames++;
         return games[numGames-1].description;
     }
@@ -65,29 +62,22 @@ contract Bets {
         return games[num].description;
     }
 
-    function getDescrA(uint num) constant returns (string descrA) {
-        return games[num].descrA;
+    function getDescr0(uint num) constant returns (string descr0) {
+        return games[num].descr[0];
     }
 
-    function getDescrB(uint num) constant returns (string descrB) {
-        return games[num].descrB;
+    function getDescr1(uint num) constant returns (string descr1) {
+        return games[num].descr[1];
     }
 
-    function placeBet(uint GameID, string Case) onlyNotAdmin() payable returns (bool result){
+    function placeBet(uint GameID, uint Case) onlyNotAdmin() payable returns (bool result){
         uint numBets;
         if ((! games[GameID].isActive) || (msg.value == 0)) throw;
-        numBets = games[GameID].numBetsA+games[GameID].numBetsB;
-        if ((sha3(Case) == sha3("A")) || (sha3(Case) == sha3("a"))) {
-            games[GameID].bets[numBets].betCase = "A";
-            games[GameID].sumBetsA += msg.value;
-            games[GameID].numBetsA++;
-        }
-        else if ((sha3(Case) == sha3("B")) || (sha3(Case) == sha3("b"))) {
-            games[GameID].bets[numBets].betCase = "B";
-            games[GameID].sumBetsB += msg.value;
-            games[GameID].numBetsB++;
-        }
-        else throw;
+        if ((Case != 0) && (Case != 1)) throw;
+        numBets = games[GameID].numBets[0]+games[GameID].numBets[1];
+        games[GameID].bets[numBets].betCase = Case;
+        games[GameID].sumBets[Case] += msg.value;
+        games[GameID].numBets[Case]++;
         games[GameID].bets[numBets].bettor = msg.sender;
         games[GameID].bets[numBets].amount = msg.value;
         games[GameID].bets[numBets].isActive = true;
@@ -98,36 +88,32 @@ contract Bets {
         return this.balance;
     }
 
+    function loser(uint winner) constant returns (uint loserIndex) {
+        if (winner == 0) return 1;
+        else if (winner == 1) return 0;
+        else throw;
+    }
+
     function claimPrize(uint GameID, uint BetID) returns (uint prize) {
         uint sumLosers = 0;
         uint sumWinners = 0;
         prize = 0;
         if ((games[GameID].isActive == true) ||
-            (sha3(games[GameID].winner) != sha3(games[GameID].bets[BetID].betCase)) ||
+            (games[GameID].winner != games[GameID].bets[BetID].betCase) ||
             (games[GameID].bets[BetID].isActive == false))
             {throw;}
-        if (sha3(games[GameID].winner) == sha3("A")) {
-            sumLosers = games[GameID].sumBetsB;
-            sumWinners = games[GameID].sumBetsA;
-        }
-        else {
-            sumLosers = games[GameID].sumBetsA;
-            sumWinners = games[GameID].sumBetsB;
-        }
+
+        sumLosers = games[GameID].sumBets[loser(games[GameID].winner)];
+        sumWinners = games[GameID].sumBets[games[GameID].winner];
+
         if (sumLosers == 0) {return 0;}
         prize =  (sumLosers*1000/sumWinners)*(games[GameID].bets[BetID].amount)/1000;
         if(!games[GameID].bets[BetID].bettor.send(prize+games[GameID].bets[BetID].amount))
                 {throw;}
         sumLosers = _safeSub(sumLosers, prize);
         sumWinners = _safeSub(sumWinners, games[GameID].bets[BetID].amount);
-        if (sha3(games[GameID].winner) == sha3("A")) {
-            games[GameID].sumBetsB = sumLosers;
-            games[GameID].sumBetsA = sumWinners;
-        }
-        else {
-            games[GameID].sumBetsA = sumLosers;
-            games[GameID].sumBetsB = sumWinners;
-        }
+        games[GameID].sumBets[games[GameID].winner] = sumWinners;
+        games[GameID].sumBets[loser(games[GameID].winner)] = sumLosers;
         games[GameID].numActiveWinnerBets = games[GameID].numActiveWinnerBets-1;
         return prize;
     }
@@ -137,36 +123,22 @@ contract Bets {
         if ((games[GameID].isActive == true) ||
             (games[GameID].numActiveWinnerBets != 0))
             {throw;}
-        if (sha3(games[GameID].winner) == sha3("A"))
-            sumLosers = games[GameID].sumBetsB;
-        else
-            sumLosers = games[GameID].sumBetsA;
+        sumLosers = games[GameID].sumBets[loser(games[GameID].winner)];
         if (sumLosers > 0)
             if(!admin.send(sumLosers)){  throw;    }
-        if (sha3(games[GameID].winner) == sha3("A"))
-            games[GameID].sumBetsB = 0;
-        else
-            games[GameID].sumBetsA = 0;
+        games[GameID].sumBets[loser(games[GameID].winner)] = 0;
         return sumLosers;
     }
 
-    function resolveGame(uint GameID, string winnerCase) onlyAdmin() returns (bool result) {
+    function resolveGame(uint GameID, uint winnerCase) onlyAdmin() returns (bool result) {
         uint sumLosers = 0;
         uint sumWinners = 0;
         uint adminFee = 0;
-        if ((sha3(winnerCase) == sha3("A")) || (sha3(winnerCase) == sha3("a"))) {
-            games[GameID].winner = "A";
-            sumLosers = games[GameID].sumBetsB;
-            sumWinners = games[GameID].sumBetsA;
-            games[GameID].numActiveWinnerBets = games[GameID].numBetsA;
-            }
-        else if ((sha3(winnerCase) == sha3("B")) || (sha3(winnerCase) == sha3("b"))) {
-            games[GameID].winner = "B";
-            sumLosers = games[GameID].sumBetsA;
-            sumWinners = games[GameID].sumBetsB;
-            games[GameID].numActiveWinnerBets = games[GameID].numBetsB;
-            }
-        else return false;
+        if ((winnerCase != 0) && (winnerCase != 1)) throw;
+        games[GameID].winner = winnerCase;
+        sumLosers = games[GameID].sumBets[loser(winnerCase)];
+        sumWinners = games[GameID].sumBets[winnerCase];
+        games[GameID].numActiveWinnerBets = games[GameID].numBets[winnerCase];
         games[GameID].isActive = false;
         if (sumWinners == 0) {
             if(!admin.send(sumLosers)){  throw;    }
@@ -174,10 +146,7 @@ contract Bets {
         else {
             adminFee = sumLosers/10;
             if(!admin.send(adminFee)){  throw;    }
-            if (sha3(winnerCase) == sha3("A"))
-                games[GameID].sumBetsB = _safeSub(sumLosers, adminFee);
-            else
-                games[GameID].sumBetsA = _safeSub(sumLosers, adminFee);
+            games[GameID].sumBets[loser(winnerCase)] = _safeSub(sumLosers, adminFee);
             return true;
         }
     }

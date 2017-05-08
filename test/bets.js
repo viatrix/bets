@@ -18,7 +18,7 @@ contract('Bets', function(accounts) {
 
   it('should allow to see the number of the bettings', () => {
       return Promise.resolve()
-      .then(() => bets.createGame("New bet", "case A", "case B", {from: OWNER}))
+      .then(() => bets.createGame("New bet", "case A", "case B", 100, {from: OWNER}))
       .then(() => bets.numGames())
       .then(asserts.equal(1));
   });
@@ -28,12 +28,12 @@ contract('Bets', function(accounts) {
       const caseA = "case A";
       const caseB = "case B";
       return Promise.resolve()
-      .then(() => bets.createGame(descr, caseA, caseB, {from: OWNER}))
+      .then(() => bets.createGame(descr, caseA, caseB, 100, {from: OWNER}))
       .then(() => bets.getDescription(0))
       .then(asserts.equal(descr))
-      .then(() => bets.getDescrA(0))
+      .then(() => bets.getDescr0(0))
       .then(asserts.equal(caseA))
-      .then(() => bets.getDescrB(0))
+      .then(() => bets.getDescr1(0))
       .then(asserts.equal(caseB));
   });
 
@@ -41,8 +41,8 @@ contract('Bets', function(accounts) {
       const bettor = accounts[1];
       const amount = 20;
       return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "A",  {from: bettor, value:amount}))
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
       .then(() => bets.checkBalance({from: OWNER}))
       .then(asserts.equal(amount));
   });
@@ -51,8 +51,8 @@ contract('Bets', function(accounts) {
       const bettor = accounts[1];
       const amount = 20;
       return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "B",  {from: bettor, value:amount}))
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
       .then(() => bets.checkBalance({from: OWNER}))
       .then(asserts.equal(amount));
   });
@@ -64,9 +64,9 @@ contract('Bets', function(accounts) {
       var bettorA_before;
       var gasPrice = web3.eth.gasPrice;
       return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
       .then(() => bettorA_before = web3.eth.getBalance(bettorA))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA, value:amount, gasPrice: gasPrice}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA, value:amount, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
       bettorA_before.sub(gasPrice.mul(result.receipt.gasUsed)).sub(amount).valueOf()));
   });
@@ -78,12 +78,12 @@ contract('Bets', function(accounts) {
       var adminBefore, bettorA_before;
       const gasPrice = web3.eth.gasPrice;
       return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA, value:amount}))
-      .then(() => bets.placeBet(0, "B",  {from: bettorB, value:amount}))
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA, value:amount}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB, value:amount}))
       .then(() =>  adminBefore = web3.eth.getBalance(OWNER))
       .then(() =>  bettorA_before = web3.eth.getBalance(bettorA))
-      .then(() => bets.resolveGame(0, "A", {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.resolveGame(0, 0, {from: OWNER, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
             adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(200).valueOf()))
       .then(() => bets.claimPrize(0,0, {gasPrice: gasPrice}))
@@ -101,15 +101,15 @@ contract('Bets', function(accounts) {
       var adminBefore, bettorB1_before, bettorB2_before;
       const gasPrice = web3.eth.gasPrice;
       return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", {from: OWNER}))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA1, value:amount1}))
-      .then(() => bets.placeBet(0, "A",  {from: bettorA2, value:amount2}))
-      .then(() => bets.placeBet(0, "B",  {from: bettorB1, value:amount1*2}))
-      .then(() => bets.placeBet(0, "B",  {from: bettorB2, value:amount2*2}))
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB1, value:amount1*2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*2}))
       .then(() =>  adminBefore = web3.eth.getBalance(OWNER))
       .then(() =>  bettorB1_before = web3.eth.getBalance(bettorB1))
       .then(() =>  bettorB2_before = web3.eth.getBalance(bettorB2))
-      .then(() => bets.resolveGame(0, "B", {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
       .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
             adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(200).valueOf()))
       .then(() => bets.claimPrize(0,2, {from: OWNER, gasPrice: gasPrice}))
@@ -118,6 +118,19 @@ contract('Bets', function(accounts) {
       .then(() => bets.claimPrize(0,3, {from: OWNER, gasPrice: gasPrice}))
       .then(() => assert.equal(web3.eth.getBalance(bettorB2).valueOf(),
                   bettorB2_before.add(1450).valueOf()));
+  });
+
+  it('should not allow to place a bet after deadline', () => {
+      const bettor = accounts[1];
+      const amount = 20;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 2, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
+      .then(() => bets.checkBalance({from: OWNER}))
+      .then(asserts.equal(amount))
+      .then(() => {setTimeout(() => bets.placeBet(0, 0,  {from: bettor, value:amount}), 3)})
+      .then(() => bets.checkBalance({from: OWNER}))
+      .then(asserts.equal(amount));
   });
 
 });

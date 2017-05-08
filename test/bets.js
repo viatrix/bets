@@ -124,13 +124,12 @@ contract('Bets', function(accounts) {
       const bettor = accounts[1];
       const amount = 20;
       return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", 2, {from: OWNER}))
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 0, {from: OWNER}))
       .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
       .then(() => bets.checkBalance({from: OWNER}))
       .then(asserts.equal(amount))
-      .then(() => {setTimeout(() => bets.placeBet(0, 0,  {from: bettor, value:amount}), 3)})
-      .then(() => bets.checkBalance({from: OWNER}))
-      .then(asserts.equal(amount));
+      .then(() => bets.spendTime())
+      .then(() => asserts.throws(bets.placeBet(0, 0,  {from: bettor, value:amount})));
   });
 
 });

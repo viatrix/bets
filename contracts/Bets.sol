@@ -72,7 +72,7 @@ contract Bets {
 
     function placeBet(uint GameID, uint Case) onlyNotAdmin() payable returns (bool result){
         uint numBets;
-        if ((! games[GameID].isActive) || (msg.value == 0)) throw;
+        if ((! games[GameID].isActive) || (msg.value == 0) || (now > games[GameID].deadline)) throw;
         if ((Case != 0) && (Case != 1)) throw;
         numBets = games[GameID].numBets[0]+games[GameID].numBets[1];
         games[GameID].bets[numBets].betCase = Case;
@@ -92,6 +92,13 @@ contract Bets {
         if (winner == 0) return 1;
         else if (winner == 1) return 0;
         else throw;
+    }
+
+    function spendTime() constant returns (uint res) {
+        res = 0;
+        for (uint i=0; i<2000; i++)
+            res += 2;
+        return res;
     }
 
     function claimPrize(uint GameID, uint BetID) returns (uint prize) {

@@ -25,6 +25,10 @@ contract Bets {
     uint public numGames;
     mapping (uint => Game) public games;
 
+    event BetPlaced(address indexed bettor, uint indexed GameID, uint indexed betCase, uint amount);
+    event GameResolved(uint indexed GameID, uint winner);
+    event WinnersGotPrize(uint indexed GameID);
+
     modifier onlyAdmin() {
         if (msg.sender != admin) {
             return;
@@ -43,6 +47,8 @@ contract Bets {
         admin = msg.sender;
         }
 
+//Main functions
+
     function createGame(string description, string descr0, string descr1, uint duration)
             onlyAdmin() returns (string descr) {
         games[numGames] = Game({description: description,
@@ -58,18 +64,6 @@ contract Bets {
         return games[numGames-1].description;
     }
 
-    function getDescription(uint num) constant returns (string descr) {
-        return games[num].description;
-    }
-
-    function getDescr0(uint num) constant returns (string descr0) {
-        return games[num].descr[0];
-    }
-
-    function getDescr1(uint num) constant returns (string descr1) {
-        return games[num].descr[1];
-    }
-
     function placeBet(uint GameID, uint Case) onlyNotAdmin() payable returns (bool result){
         uint numBets;
         if ((! games[GameID].isActive) || (msg.value == 0) || (now > games[GameID].deadline)) throw;
@@ -81,24 +75,8 @@ contract Bets {
         games[GameID].bets[numBets].bettor = msg.sender;
         games[GameID].bets[numBets].amount = msg.value;
         games[GameID].bets[numBets].isActive = true;
+        BetPlaced(msg.sender, GameID, Case, msg.value);
         return true;
-    }
-
-    function checkBalance() constant returns (uint balance){
-        return this.balance;
-    }
-
-    function loser(uint winner) constant returns (uint loserIndex) {
-        if (winner == 0) return 1;
-        else if (winner == 1) return 0;
-        else throw;
-    }
-
-    function spendTime() constant returns (uint res) {
-        res = 0;
-        for (uint i=0; i<2000; i++)
-            res += 2;
-        return res;
     }
 
     function claimPrize(uint GameID, uint BetID) returns (uint prize) {
@@ -113,15 +91,21 @@ contract Bets {
         sumLosers = games[GameID].sumBets[loser(games[GameID].winner)];
         sumWinners = games[GameID].sumBets[games[GameID].winner];
 
-        if (sumLosers == 0) {return 0;}
+        if (sumLosers == 0) {
+            if(!games[GameID].bets[BetID].bettor.send(games[GameID].bets[BetID].amount))
+                    {throw;}
+            return 0;
+            }
         prize =  (sumLosers*1000/sumWinners)*(games[GameID].bets[BetID].amount)/1000;
         if(!games[GameID].bets[BetID].bettor.send(prize+games[GameID].bets[BetID].amount))
                 {throw;}
+        games[GameID].bets[BetID].isActive = false;
         sumLosers = _safeSub(sumLosers, prize);
         sumWinners = _safeSub(sumWinners, games[GameID].bets[BetID].amount);
         games[GameID].sumBets[games[GameID].winner] = sumWinners;
         games[GameID].sumBets[loser(games[GameID].winner)] = sumLosers;
         games[GameID].numActiveWinnerBets = games[GameID].numActiveWinnerBets-1;
+        if (games[GameID].numActiveWinnerBets == 0) WinnersGotPrize(GameID);
         return prize;
     }
 
@@ -150,16 +134,47 @@ contract Bets {
         if (sumWinners == 0) {
             if(!admin.send(sumLosers)){  throw;    }
         }
-        else {
+        else if (sumLosers > 0){
             adminFee = sumLosers/10;
             if(!admin.send(adminFee)){  throw;    }
             games[GameID].sumBets[loser(winnerCase)] = _safeSub(sumLosers, adminFee);
-            return true;
         }
+        GameResolved(GameID, winnerCase);
+        return true;
+    }
+
+//Getters
+
+    function getDescription(uint num) constant returns (string descr) {
+        return games[num].description;
+    }
+
+    function getDescr0(uint num) constant returns (string descr0) {
+        return games[num].descr[0];
+    }
+
+    function getDescr1(uint num) constant returns (string descr1) {
+        return games[num].descr[1];
+    }
+
+    function checkBalance() constant returns (uint balance){
+        return this.balance;
     }
 
     function getUserBalance(address user) constant returns (uint balance) {
         return user.balance;
+    }
+
+    function getRemainingTime(uint GameID) constant returns (uint remainingSeconds) {
+        return games[GameID].deadline-now;
+    }
+
+//Helpers
+
+    function loser(uint winner) constant returns (uint loserIndex) {
+        if (winner == 0) return 1;
+        else if (winner == 1) return 0;
+        else throw;
     }
 
     function _assert(bool _assertion) internal {

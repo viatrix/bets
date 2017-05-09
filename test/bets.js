@@ -120,16 +120,249 @@ contract('Bets', function(accounts) {
                   bettorB2_before.add(1450).valueOf()));
   });
 
-  it('should not allow to place a bet after deadline', () => {
+  it('should allow to emit an event when a bet is placed', () => {
       const bettor = accounts[1];
       const amount = 20;
       return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", 0, {from: OWNER}))
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
+      .then(result => {
+            assert.equal(result.logs.length, 1);
+            assert.equal(result.logs[0].event, 'BetPlaced');
+            assert.equal(result.logs[0].args.bettor, bettor);
+            assert.equal(result.logs[0].args.GameID, 0);
+            assert.equal(result.logs[0].args.betCase, 0);
+            assert.equal(result.logs[0].args.amount.valueOf(), amount);
+          });
+  });
+
+  it('should emit an event when the game is resolved', () => {
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.createGame("New bet 2", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.resolveGame(1, 0, {from: OWNER}))
+      .then(result => {
+            assert.equal(result.logs.length, 1);
+            assert.equal(result.logs[0].event, 'GameResolved');
+            assert.equal(result.logs[0].args.GameID, 1);
+            assert.equal(result.logs[0].args.winner, 0);
+          });
+  });
+
+  it('should emit an event when all prizes are claimed', () => {
+      const bettorA1 = accounts[1];
+      const bettorA2 = accounts[2];
+      const bettorB1 = accounts[3];
+      const bettorB2 = accounts[4];
+      const amount1 = 1500;
+      const amount2 = 500;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB1, value:amount1*2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*2}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.claimPrize(0,2, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.claimPrize(0,3, {from: OWNER, gasPrice: gasPrice}))
+      .then(result => {
+            assert.equal(result.logs.length, 1);
+            assert.equal(result.logs[0].event, 'WinnersGotPrize');
+            assert.equal(result.logs[0].args.GameID, 0);
+        });
+  });
+
+
+  it('should not allow to get prize for an active game', () => {
+      const bettorA = accounts[1];
+      const amount = 2000;
+      var adminBefore, bettorA_before;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA, value:amount}))
+      .then(() =>  bettorA_before = web3.eth.getBalance(bettorA))
+      .then(() => asserts.throws(bets.claimPrize(0,0, {gasPrice: gasPrice})))
+      .then(() => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
+            bettorA_before.valueOf()));
+  });
+
+  it('should not allow to place a bet on a non-existing game', () => {
+      const bettorA = accounts[1];
+      const amount = 2000;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => asserts.throws(bets.placeBet(1, 0,  {from: bettorA, value:amount})));
+  });
+
+  it('should not allow to place a bet on a non-existing case', () => {
+      const bettorA = accounts[1];
+      const amount = 2000;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => asserts.throws(bets.placeBet(0, 2,  {from: bettorA, value:amount})));
+  });
+
+  it('should not allow to place a bet without sending money', () => {
+      const bettorA = accounts[1];
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => asserts.throws(bets.placeBet(0, 0,  {from: bettorA})));
+  });
+
+  it('should not allow to claim a prize for a non-existing bet id', () => {
+      const bettorA1 = accounts[1];
+      const bettorA2 = accounts[2];
+      const bettorB1 = accounts[3];
+      const bettorB2 = accounts[4];
+      const amount1 = 1500;
+      const amount2 = 500;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB1, value:amount1*2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*2}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => asserts.throws(bets.claimPrize(0,4)));
+  });
+
+  it('should not allow to resolve a game and assign a non-existing winner case', () => {
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => asserts.throws(bets.resolveGame(0, 2, {from: OWNER})));
+  });
+
+  it('should not allow to get prize more than once', () => {
+      const bettorA1 = accounts[1];
+      const bettorA2 = accounts[2];
+      const bettorB1 = accounts[3];
+      const bettorB2 = accounts[4];
+      const amount1 = 1500;
+      const amount2 = 500;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB1, value:amount1*2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*2}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.claimPrize(0,2, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => asserts.throws(bets.claimPrize(0,2, {from: OWNER, gasPrice: gasPrice})));
+  });
+
+  it('should not allow to get prize for a loser', () => {
+      const bettorA1 = accounts[1];
+      const bettorA2 = accounts[2];
+      const bettorB1 = accounts[3];
+      const bettorB2 = accounts[4];
+      const amount1 = 1500;
+      const amount2 = 500;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB1, value:amount1*2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*2}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => asserts.throws(bets.claimPrize(0,0, {from: OWNER, gasPrice: gasPrice})));
+  });
+
+  it('should allow to get remainings', () => {
+      const bettorA1 = accounts[1];
+      const bettorA2 = accounts[2];
+      const bettorB1 = accounts[3];
+      const bettorB2 = accounts[4];
+      const amount1 = 1333;
+      const amount2 = 333;
+      var adminBefore = 0;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB1, value:amount1*3}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*3}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.claimPrize(0,2, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => bets.claimPrize(0,3, {from: OWNER, gasPrice: gasPrice}))
+      .then(() =>  adminBefore = web3.eth.getBalance(OWNER))
+      .then(() => bets.claimRemainings(0, {from: OWNER, gasPrice: gasPrice}))
+      .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
+            adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(1).valueOf()));
+  });
+
+  it('should not allow to get remainings for an active game', () => {
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => asserts.throws(bets.claimRemainings(0, 2, {from: OWNER})));
+  });
+
+  it('should not allow to get remainings when there are active winners', () => {
+      const bettorA1 = accounts[1];
+      const bettorA2 = accounts[2];
+      const bettorB1 = accounts[3];
+      const bettorB2 = accounts[4];
+      const amount1 = 1333;
+      const amount2 = 333;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount1}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount2}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB1, value:amount1*3}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*3}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() => asserts.throws(bets.claimRemainings(0, 2, {from: OWNER})));
+  });
+
+  it('should allow to get prize for admin when there are no winner bets', () => {
+      const bettorA = accounts[1];
+      const amount = 2000;
+      var adminBefore;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA, value:amount}))
+      .then(() =>  adminBefore = web3.eth.getBalance(OWNER))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then((result) => assert.equal(web3.eth.getBalance(OWNER).valueOf(),
+            adminBefore.sub(gasPrice.mul(result.receipt.gasUsed)).add(2000).valueOf()));
+  });
+
+  it('should allow to get bet back when there are no loser bets', () => {
+      const bettorA = accounts[1];
+      const amount = 2000;
+      var bettorA_Before;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorA, value:amount}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() =>  bettorA_Before = web3.eth.getBalance(bettorA))
+      .then(() => bets.claimPrize(0,0))
+      .then((result) => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
+            bettorA_Before.add(amount).valueOf()));
+  });
+
+  it('should not allow to place a bet after deadline - async', () => {
+      const bettor = accounts[1];
+      const amount = 20;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 2, {from: OWNER}))
       .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
       .then(() => bets.checkBalance({from: OWNER}))
       .then(asserts.equal(amount))
-      .then(() => bets.spendTime())
-      .then(() => asserts.throws(bets.placeBet(0, 0,  {from: bettor, value:amount})));
+      .then(() => {
+            return new Promise((resolve, reject) => {
+            setTimeout(() => {asserts.throws(bets.placeBet(0, 0,  {from: bettor, value:amount}));
+            resolve("result")}, 3000)
+            });
+        });
   });
 
 });

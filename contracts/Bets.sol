@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+pragma solidity 0.4.11;
 
 contract Bets {
     address public admin;

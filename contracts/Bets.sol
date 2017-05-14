@@ -27,7 +27,8 @@ contract Bets {
 
     event BetPlaced(address indexed bettor, uint indexed GameID, uint indexed betCase, uint amount);
     event GameResolved(uint indexed GameID, uint winner);
-    event WinnersGotPrize(uint indexed GameID);
+    event WinnerGotPrize(uint indexed GameID, address indexed bettor, uint amount);
+    event AllWinnersGotPrize(uint indexed GameID);
 
     modifier onlyAdmin() {
         if (msg.sender != admin) {
@@ -95,6 +96,7 @@ contract Bets {
             if(!games[GameID].bets[BetID].bettor.send(games[GameID].bets[BetID].amount))
                     {throw;}
             games[GameID].bets[BetID].isActive = false;
+            WinnerGotPrize(GameID, games[GameID].bets[BetID].bettor, games[GameID].bets[BetID].amount);
             return 0;
             }
         prize =  (sumLosers*1000/sumWinners)*(games[GameID].bets[BetID].amount)/1000;
@@ -106,7 +108,8 @@ contract Bets {
         games[GameID].sumBets[games[GameID].winner] = sumWinners;
         games[GameID].sumBets[loser(games[GameID].winner)] = sumLosers;
         games[GameID].numActiveWinnerBets = games[GameID].numActiveWinnerBets-1;
-        if (games[GameID].numActiveWinnerBets == 0) WinnersGotPrize(GameID);
+        WinnerGotPrize(GameID, games[GameID].bets[BetID].bettor, prize+games[GameID].bets[BetID].amount);
+        if (games[GameID].numActiveWinnerBets == 0) AllWinnersGotPrize(GameID);
         return prize;
     }
 

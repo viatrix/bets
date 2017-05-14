@@ -149,6 +149,27 @@ contract('Bets', function(accounts) {
           });
   });
 
+    it('should emit an event when the prize is claimed', () => {
+        const bettorA1 = accounts[1];
+        const bettorA2 = accounts[1];
+        const bettorB = accounts[2];
+        const amount = 2000;
+        return Promise.resolve()
+        .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+        .then(() => bets.placeBet(0, 0,  {from: bettorA1, value:amount}))
+        .then(() => bets.placeBet(0, 0,  {from: bettorA2, value:amount}))
+        .then(() => bets.placeBet(0, 1,  {from: bettorB, value:amount}))
+        .then(() => bets.resolveGame(0, 0, {from: OWNER}))
+        .then(() => bets.claimPrize(0,0))
+        .then(result => {
+              assert.equal(result.logs.length, 1);
+              assert.equal(result.logs[0].event, 'WinnerGotPrize');
+              assert.equal(result.logs[0].args.GameID, 0);
+              assert.equal(result.logs[0].args.bettor, bettorA1);
+              assert.equal(result.logs[0].args.amount, 2900);
+          });
+    });
+
   it('should emit an event when all prizes are claimed', () => {
       const bettorA1 = accounts[1];
       const bettorA2 = accounts[2];
@@ -165,11 +186,20 @@ contract('Bets', function(accounts) {
       .then(() => bets.placeBet(0, 1,  {from: bettorB2, value:amount2*2}))
       .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
       .then(() => bets.claimPrize(0,2, {from: OWNER, gasPrice: gasPrice}))
-      .then(() => bets.claimPrize(0,3, {from: OWNER, gasPrice: gasPrice}))
       .then(result => {
             assert.equal(result.logs.length, 1);
-            assert.equal(result.logs[0].event, 'WinnersGotPrize');
+            assert.equal(result.logs[0].event, 'WinnerGotPrize');
             assert.equal(result.logs[0].args.GameID, 0);
+            assert.equal(result.logs[0].args.bettor, bettorB1);
+        })
+      .then(() => bets.claimPrize(0,3, {from: OWNER, gasPrice: gasPrice}))
+      .then(result => {
+            assert.equal(result.logs.length, 2);
+            assert.equal(result.logs[0].event, 'WinnerGotPrize');
+            assert.equal(result.logs[0].args.GameID, 0);
+            assert.equal(result.logs[0].args.bettor, bettorB2);
+            assert.equal(result.logs[1].event, 'AllWinnersGotPrize');
+            assert.equal(result.logs[1].args.GameID, 0);
         });
   });
 

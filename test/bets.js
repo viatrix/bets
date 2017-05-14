@@ -349,6 +349,22 @@ contract('Bets', function(accounts) {
             bettorA_Before.add(amount).valueOf()));
   });
 
+  it('should not allow to get bet back more than once', () => {
+      const bettorA = accounts[1];
+      const amount = 2000;
+      var bettorA_Before;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorA, value:amount}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER, gasPrice: gasPrice}))
+      .then(() =>  bettorA_Before = web3.eth.getBalance(bettorA))
+      .then(() => bets.claimPrize(0,0))
+      .then((result) => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
+            bettorA_Before.add(amount).valueOf()))
+      .then(() => asserts.throws(bets.claimPrize(0,0)));
+  });
+
   it('should not allow to place a bet after deadline - async', () => {
       const bettor = accounts[1];
       const amount = 20;
@@ -363,6 +379,26 @@ contract('Bets', function(accounts) {
             resolve("result")}, 3000)
             });
         });
+  });
+
+  it('should not allow to place a bet after deadline - async, increaseTime', () => {
+      const bettor = accounts[1];
+      const amount = 20;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 2, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
+      .then(() => bets.checkBalance({from: OWNER}))
+      .then(asserts.equal(amount))
+      .then(() => {return new Promise((resolve, reject) => {
+          web3.currentProvider.sendAsync({
+                  jsonrpc: "2.0",
+                  method: "evm_increaseTime",
+                  params: [3],
+                  id: new Date().getTime()
+              }, (error, result) => error ? reject(error) : resolve(result.result))
+            })
+        })
+      .then(() => asserts.throws(bets.placeBet(0, 0,  {from: bettor, value:amount})));
   });
 
 });

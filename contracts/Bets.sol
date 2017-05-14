@@ -94,6 +94,7 @@ contract Bets {
         if (sumLosers == 0) {
             if(!games[GameID].bets[BetID].bettor.send(games[GameID].bets[BetID].amount))
                     {throw;}
+            games[GameID].bets[BetID].isActive = false;
             return 0;
             }
         prize =  (sumLosers*1000/sumWinners)*(games[GameID].bets[BetID].amount)/1000;

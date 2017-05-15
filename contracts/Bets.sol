@@ -20,6 +20,7 @@ contract Bets {
         uint[2] sumBets;
         uint winner;
         uint deadline;
+        bool gameDraw;
     }
 
     uint public numGames;
@@ -27,6 +28,7 @@ contract Bets {
 
     event BetPlaced(address indexed bettor, uint indexed GameID, uint indexed betCase, uint amount);
     event GameResolved(uint indexed GameID, uint winner);
+    event GameEndedInADraw(uint indexed GameID);
     event WinnerGotPrize(uint indexed GameID, address indexed bettor, uint amount);
     event AllWinnersGotPrize(uint indexed GameID);
 
@@ -59,7 +61,8 @@ contract Bets {
             numActiveWinnerBets: 0,
             sumBets: [uint256(0), uint256(0)],
             winner: 0,
-            deadline: now + duration * 1 seconds
+            deadline: now + duration * 1 seconds,
+            gameDraw: false
         });
         numGames++;
         return games[numGames-1].description;
@@ -85,17 +88,19 @@ contract Bets {
         uint sumWinners = 0;
         prize = 0;
         if ((games[GameID].isActive == true) ||
-            (games[GameID].winner != games[GameID].bets[BetID].betCase) ||
+            ((!games[GameID].gameDraw) &&
+            (games[GameID].winner != games[GameID].bets[BetID].betCase)) ||
             (games[GameID].bets[BetID].isActive == false))
             {throw;}
 
         sumLosers = games[GameID].sumBets[loser(games[GameID].winner)];
         sumWinners = games[GameID].sumBets[games[GameID].winner];
 
-        if (sumLosers == 0) {
+        if ((sumLosers == 0) || games[GameID].gameDraw) {
             if(!games[GameID].bets[BetID].bettor.send(games[GameID].bets[BetID].amount))
                     {throw;}
             games[GameID].bets[BetID].isActive = false;
+            games[GameID].numActiveWinnerBets = games[GameID].numActiveWinnerBets-1;
             WinnerGotPrize(GameID, games[GameID].bets[BetID].bettor, games[GameID].bets[BetID].amount);
             return 0;
             }
@@ -129,7 +134,7 @@ contract Bets {
         uint sumLosers = 0;
         uint sumWinners = 0;
         uint adminFee = 0;
-        if ((winnerCase != 0) && (winnerCase != 1)) throw;
+        if (((winnerCase != 0) && (winnerCase != 1)) || (!games[GameID].isActive)) throw;
         games[GameID].winner = winnerCase;
         sumLosers = games[GameID].sumBets[loser(winnerCase)];
         sumWinners = games[GameID].sumBets[winnerCase];
@@ -144,6 +149,15 @@ contract Bets {
             games[GameID].sumBets[loser(winnerCase)] = _safeSub(sumLosers, adminFee);
         }
         GameResolved(GameID, winnerCase);
+        return true;
+    }
+
+    function endGameInADraw(uint GameID) onlyAdmin() returns (bool result) {
+        if (!games[GameID].isActive) throw;
+        games[GameID].gameDraw = true;
+        games[GameID].numActiveWinnerBets = games[GameID].numBets[0]+games[GameID].numBets[1];
+        games[GameID].isActive = false;
+        GameEndedInADraw(GameID);
         return true;
     }
 

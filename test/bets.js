@@ -395,6 +395,45 @@ contract('Bets', function(accounts) {
       .then(() => asserts.throws(bets.claimPrize(0,0)));
   });
 
+  it('should not allow to set winner more than once', () => {
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.resolveGame(0, 1, {from: OWNER}))
+      .then(() => asserts.throws(bets.resolveGame(0, 1, {from: OWNER})));
+  });
+
+  it('should allow to end the game in a draw', () => {
+      const bettorA = accounts[1];
+      const bettorB = accounts[2];
+      const amount = 2000;
+      var bettorA_Before, bettorB_before;
+      const gasPrice = web3.eth.gasPrice;
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.placeBet(0, 0,  {from: bettorA, value:amount}))
+      .then(() => bets.placeBet(0, 1,  {from: bettorB, value:amount}))
+      .then(() => bets.endGameInADraw(0, {from: OWNER, gasPrice: gasPrice}))
+      .then(() =>  bettorA_Before = web3.eth.getBalance(bettorA))
+      .then(() => bets.claimPrize(0,0))
+      .then((result) => assert.equal(web3.eth.getBalance(bettorA).valueOf(),
+            bettorA_Before.add(amount).valueOf()))
+      .then(() =>  bettorB_Before = web3.eth.getBalance(bettorB))
+      .then(() => bets.claimPrize(0,1))
+      .then((result) => assert.equal(web3.eth.getBalance(bettorB).valueOf(),
+          bettorB_Before.add(amount).valueOf()));
+  });
+
+  it('should emit an event if the game ended in a draw', () => {
+      return Promise.resolve()
+      .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
+      .then(() => bets.endGameInADraw(0, {from: OWNER}))
+      .then(result => {
+            assert.equal(result.logs.length, 1);
+            assert.equal(result.logs[0].event, 'GameEndedInADraw');
+            assert.equal(result.logs[0].args.GameID, 0);
+        });
+  });
+
   it('should not allow to place a bet after deadline - async', () => {
       const bettor = accounts[1];
       const amount = 20;

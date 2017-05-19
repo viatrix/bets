@@ -175,6 +175,14 @@ contract Bets {
         return games[num].descr[1];
     }
 
+    function getNumBets0(uint num) constant returns (uint numBets) {
+        return games[num].numBets[0];
+    }
+
+    function getNumBets1(uint num) constant returns (uint numBets) {
+        return games[num].numBets[1];
+    }
+
     function checkBalance() constant returns (uint balance){
         return this.balance;
     }

@@ -434,6 +434,26 @@ contract('Bets', function(accounts) {
         });
   });
 
+    it('should not allow to place a bet after deadline - async, increaseTime', () => {
+        const bettor = accounts[1];
+        const amount = 20;
+        return Promise.resolve()
+        .then(() => bets.createGame("New bet 1", "case A", "case B", 2, {from: OWNER}))
+        .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
+        .then(() => bets.checkBalance({from: OWNER}))
+        .then(asserts.equal(amount))
+        .then(() => {return new Promise((resolve, reject) => {
+            web3.currentProvider.sendAsync({
+                    jsonrpc: "2.0",
+                    method: "evm_increaseTime",
+                    params: [3],
+                    id: new Date().getTime()
+                }, (error, result) => error ? reject(error) : resolve(result.result))
+              })
+          })
+        .then(() => asserts.throws(bets.placeBet(0, 0,  {from: bettor, value:amount})));
+    });
+
   it('should not allow to place a bet after deadline - async', () => {
       const bettor = accounts[1];
       const amount = 20;
@@ -448,26 +468,6 @@ contract('Bets', function(accounts) {
             resolve("result")}, 3000)
             });
         });
-  });
-
-  it('should not allow to place a bet after deadline - async, increaseTime', () => {
-      const bettor = accounts[1];
-      const amount = 20;
-      return Promise.resolve()
-      .then(() => bets.createGame("New bet 1", "case A", "case B", 2, {from: OWNER}))
-      .then(() => bets.placeBet(0, 0,  {from: bettor, value:amount}))
-      .then(() => bets.checkBalance({from: OWNER}))
-      .then(asserts.equal(amount))
-      .then(() => {return new Promise((resolve, reject) => {
-          web3.currentProvider.sendAsync({
-                  jsonrpc: "2.0",
-                  method: "evm_increaseTime",
-                  params: [3],
-                  id: new Date().getTime()
-              }, (error, result) => error ? reject(error) : resolve(result.result))
-            })
-        })
-      .then(() => asserts.throws(bets.placeBet(0, 0,  {from: bettor, value:amount})));
   });
 
 });

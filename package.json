@@ -6,7 +6,7 @@
     "test": "truffle test",
     "compile": "truffle compile",
     "truffle": "truffle",
-    "testrpc": "testrpc"
+    "testrpc": "testrpc -a 101"
   },
   "repository": {
     "type": "git",

@@ -22,9 +22,9 @@ contract('Bets', function(accounts) {
         const accountsNotOwner = accounts.slice(1);
         return Promise.resolve()
         .then(() => bets.createGame("New bet 1", "case A", "case B", 100, {from: OWNER}))
-        .then(() => Promise.each(accountsNotOwner,(account) => {
-            bets.placeBet(0, 0,  {from: account, value:100});
-        }))
+        .then(() => Promise.each(accountsNotOwner,(account) =>
+            bets.placeBet(0, 0, {from: account, value:100})
+        ))
         .then(() => bets.checkBalance({from: OWNER}))
         .then(asserts.equal(10000));
     });
